@@ -8,3 +8,4 @@ module cpu (
     output reg mem_rd,              // Memory read enable
     output reg mem_wr               // Memory write enable
 );
+
