@@ -9,3 +9,7 @@ module cpu (
     output reg mem_wr               // Memory write enable
 );
 
+//internal registers
+reg [15:0] AR, PC
+reg [7:0] DR, IR, TR, AC, R;
+reg Z;
