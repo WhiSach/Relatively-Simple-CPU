@@ -9,22 +9,27 @@ module cpu (
     output reg mem_wr               // Memory write enable
 );
 
-//internal registers
-reg [15:0] AR, PC;
-reg [7:0] DR, IR, TR, AC, R;
-reg Z;
+    //internal registers
+    reg [15:0] AR, PC;
+    reg [7:0] DR, IR, TR, AC, R;
+    reg Z;
 
-// Finite State Machine (FSM) states
+// Finite State Machine (FSM) states (6 bits for 39 states)
 
-localparam FETCH1 = 4'd0, FETCH2 = 4'd1, FETCH3 = 4'd2, DECODE = 4'd3,
-               LDAC1  = 4'd4, LDAC2  = 4'd5, LDAC3  = 4'd6, LDAC4  = 4'd7, LDAC5  = 4'd8,
-                STAC1  = 4'd9, STAC2  = 4'd10, STAC3  = 4'd11, STAC4  = 4'd12, STAC5  = 4'd13,
-                JUMP1 = 4'd14, JUMP2 = 4'd15, JUMP3 = 4'd16, JMPZY1 = 4'd17, JMPZY2 = 4'd18, JMPZY3 = 4'd19,
-                JMPZN1 = 4'd20, JMPZN2 = 4'd21, JPNYZ1 = 4'd22, JPNYZ2 = 4'd23, JPNYZ3 = 4'd24,
-                JPNZN1 = 4'd25, JPNZN2 = 4'd26, ADD1 = 4'd27, SUB1 = 4'd28, AND1 = 4'd29, OR1 = 4'd30, NOT1 = 4'd31, 
-                NOP1 = 4'd32, XOR1 = 4'd33, MVAC1 = 4'd34, MVAC2 = 4'd35;
+    localparam [5:0] 
+        FETCH1 = 6'd0,  FETCH2 = 6'd1,  FETCH3 = 6'd2,
+        LDAC1  = 6'd3,  LDAC2  = 6'd4,  LDAC3  = 6'd5,  LDAC4  = 6'd6,  LDAC5  = 6'd7,
+        STAC1  = 6'd8,  STAC2  = 6'd9,  STAC3  = 6'd10, STAC4  = 6'd11, STAC5  = 6'd12,
+        JUMP1  = 6'd13, JUMP2  = 6'd14, JUMP3  = 6'd15,
+        JMPZY1 = 6'd16, JMPZY2 = 6'd17, JMPZY3 = 6'd18, // JMPZ Taken
+        JPNYZ1 = 6'd19, JPNYZ2 = 6'd20, JPNYZ3 = 6'd21, // JPNZ Taken
+        ADD1   = 6'd22, SUB1   = 6'd23, INAC1  = 6'd24, CLAC1  = 6'd25,
+        AND1   = 6'd26, OR1    = 6'd27, XOR1   = 6'd28, NOT1   = 6'd29,
+        MVAC1  = 6'd30, MOVR1  = 6'd31, NOP1   = 6'd32;
 
-reg [3:0] current_state;
+    reg [5:0] current_state, next_state;
+
+// Opcode Parameters
 
 localparam OP_NOP  = 8'b00000000, OP_LDAC = 8'b00000001, OP_STAC = 8'b00000010,
            OP_MVAC = 8'b00000011, OP_MOVR = 8'b00000100, OP_JUMP = 8'b00000101,
@@ -32,3 +37,55 @@ localparam OP_NOP  = 8'b00000000, OP_LDAC = 8'b00000001, OP_STAC = 8'b00000010,
            OP_SUB = 8'b00001001, OP_INAC = 8'b00001010, OP_CLAC = 8'b00001011,
            OP_AND = 8'b00001100, OP_OR = 8'b00001101, OP_XOR = 8'b00001110,
            OP_NOT = 8'b00001111;
+
+always @(*) begin
+    next_state = FETCH1; // Default state
+    case(current_state)
+        //FETCH CYCLE
+        FETCH1: next_state = FETCH2;
+        FETCH2: next_state = FETCH3;
+        FETCH3: begin
+            //decide next state based on IR
+            case(IR)
+                OP_LDAC: next_state = LDAC1;
+                OP_STAC: next_state = STAC1;
+                OP_MVAC: next_state = MVAC1;
+                OP_MOVR: next_state = MOVR1;
+                OP_JUMP: next_state = JUMP1;
+                OP_JMPZ: next_state = JMPZY1; // Check Z flag later
+                OP_JPNZ: next_state = JPNYZ1; // Check Z flag later
+                OP_ADD:  next_state = ADD1;
+                OP_SUB:  next_state = SUB1;
+                OP_INAC: next_state = INAC1;
+                OP_CLAC: next_state = CLAC1;
+                OP_AND:  next_state = AND1;
+                OP_OR:   next_state = OR1;
+                OP_XOR:  next_state = XOR1;
+                OP_NOT:  next_state = NOT1;
+                default: next_state = NOP1; // For unrecognized opcodes
+            endcase
+        end
+
+            // --- LDAC Cycle ---
+            LDAC1: next_state = LDAC2; LDAC2: next_state = LDAC3; LDAC3: next_state = LDAC4; 
+            LDAC4: next_state = LDAC5; LDAC5: next_state = FETCH1;
+
+            // --- STAC Cycle ---
+            STAC1: next_state = STAC2; STAC2: next_state = STAC3; STAC3: next_state = STAC4; 
+            STAC4: next_state = STAC5; STAC5: next_state = FETCH1;
+
+            // --- JUMP Cycle ---
+            JUMP1: next_state = JUMP2; JUMP2: next_state = JUMP3; JUMP3: next_state = FETCH1;
+
+            // --- JMPZ Cycle (Taken) ---
+            JMPZY1: next_state = JMPZY2; JMPZY2: next_state = JMPZY3; JMPZY3: next_state = FETCH1;
+
+            // --- JPNZ Cycle (Taken) ---
+            JPNYZ1: next_state = JPNYZ2; JPNYZ2: next_state = JPNYZ3; JPNYZ3: next_state = FETCH1;
+
+            // --- 1-Byte Instructions (1 state only) ---
+            ADD1, SUB1, INAC1, CLAC1, AND1, OR1, XOR1, NOT1, 
+            MVAC1, MOVR1, NOP1: next_state = FETCH1;
+        endcase
+    end
+
