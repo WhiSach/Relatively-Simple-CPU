@@ -7,59 +7,58 @@ module cpu (
     output reg [7:0] mem_data_out,  // Data written to RAM
     output reg mem_rd,              // Memory read enable
     output reg mem_wr               // Memory write enable
-    
-        // ALU Control Wires
-    wire alu_add  = (current_state == ADD1);
-    wire alu_sub  = (current_state == SUB1);
-    wire alu_inc  = (current_state == INAC1);
-    wire alu_clr  = (current_state == CLAC1);
-    wire alu_and  = (current_state == AND1);
-    wire alu_or   = (current_state == OR1);
-    wire alu_xor  = (current_state == XOR1);
-    wire alu_not  = (current_state == NOT1);
-
-    // ALU Outputs
-    wire [7:0] alu_out;
-    wire alu_zero;
-
-    // Instantiate the ALU
-    alu u_alu (
-        .A(AC), 
-        .B(R),
-        .add(alu_add), .sub(alu_sub), .inc(alu_inc), .clr(alu_clr),
-        .and_op(alu_and), .or_op(alu_or), .xor_op(alu_xor), .not_op(alu_not),
-        .result(alu_out), 
-        .zero(alu_zero)
 );
 
-    //internal registers
+    // Internal Registers
     reg [15:0] AR, PC;
-    reg [7:0] DR, IR, TR, AC, R;
-    reg Z;
+    reg [7:0]  DR, IR, TR, AC, R;
+    reg        Z;
 
-// Finite State Machine (FSM) states (6 bits for 39 states)
-
-    localparam [5:0] 
+    // Finite State Machine (FSM) states (6 bits for 33 states)
+    localparam [5:0]
         FETCH1 = 6'd0,  FETCH2 = 6'd1,  FETCH3 = 6'd2,
         LDAC1  = 6'd3,  LDAC2  = 6'd4,  LDAC3  = 6'd5,  LDAC4  = 6'd6,  LDAC5  = 6'd7,
         STAC1  = 6'd8,  STAC2  = 6'd9,  STAC3  = 6'd10, STAC4  = 6'd11, STAC5  = 6'd12,
         JUMP1  = 6'd13, JUMP2  = 6'd14, JUMP3  = 6'd15,
-        JMPZY1 = 6'd16, JMPZY2 = 6'd17, JMPZY3 = 6'd18, // JMPZ Taken
-        JPNYZ1 = 6'd19, JPNYZ2 = 6'd20, JPNYZ3 = 6'd21, // JPNZ Taken
+        JMPZY1 = 6'd16, JMPZY2 = 6'd17, JMPZY3 = 6'd18,
+        JPNYZ1 = 6'd19, JPNYZ2 = 6'd20, JPNYZ3 = 6'd21,
         ADD1   = 6'd22, SUB1   = 6'd23, INAC1  = 6'd24, CLAC1  = 6'd25,
         AND1   = 6'd26, OR1    = 6'd27, XOR1   = 6'd28, NOT1   = 6'd29,
         MVAC1  = 6'd30, MOVR1  = 6'd31, NOP1   = 6'd32;
 
     reg [5:0] current_state, next_state;
 
-// Opcode Parameters
+    // Opcode Parameters
+    localparam OP_NOP  = 8'b00000000, OP_LDAC = 8'b00000001, OP_STAC = 8'b00000010,
+               OP_MVAC = 8'b00000011, OP_MOVR = 8'b00000100, OP_JUMP = 8'b00000101,
+               OP_JMPZ = 8'b00000110, OP_JPNZ = 8'b00000111, OP_ADD  = 8'b00001000,
+               OP_SUB  = 8'b00001001, OP_INAC = 8'b00001010, OP_CLAC = 8'b00001011,
+               OP_AND  = 8'b00001100, OP_OR   = 8'b00001101, OP_XOR  = 8'b00001110,
+               OP_NOT  = 8'b00001111;
 
-localparam OP_NOP  = 8'b00000000, OP_LDAC = 8'b00000001, OP_STAC = 8'b00000010,
-           OP_MVAC = 8'b00000011, OP_MOVR = 8'b00000100, OP_JUMP = 8'b00000101,
-           OP_JMPZ = 8'b00000110, OP_JPNZ = 8'b00000111, OP_ADD = 8'b00001000,
-           OP_SUB = 8'b00001001, OP_INAC = 8'b00001010, OP_CLAC = 8'b00001011,
-           OP_AND = 8'b00001100, OP_OR = 8'b00001101, OP_XOR = 8'b00001110,
-           OP_NOT = 8'b00001111;
+    // ALU Control Wires (depend on current_state & localparams above)
+    wire alu_add = (current_state == ADD1);
+    wire alu_sub = (current_state == SUB1);
+    wire alu_inc = (current_state == INAC1);
+    wire alu_clr = (current_state == CLAC1);
+    wire alu_and = (current_state == AND1);
+    wire alu_or  = (current_state == OR1);
+    wire alu_xor = (current_state == XOR1);
+    wire alu_not = (current_state == NOT1);
+
+    // ALU Outputs
+    wire [7:0] alu_out;
+    wire       alu_zero;
+
+    // Instantiate the ALU
+    alu u_alu (
+        .A      (AC),
+        .B      (R),
+        .add    (alu_add), .sub   (alu_sub), .inc(alu_inc), .clr(alu_clr),
+        .and_op (alu_and), .or_op (alu_or),  .xor_op(alu_xor), .not_op(alu_not),
+        .result (alu_out),
+        .zero   (alu_zero)
+    );
 
 always @(*) begin
     next_state = FETCH1; // Default state
@@ -142,8 +141,8 @@ always @(posedge clk or posedge rst) begin
             STAC2: begin TR <= DR; DR <= mem_data_in; PC <= PC+16'd1; end
             STAC3: AR <= {TR,DR};
             STAC4: begin DR <= AC; mem_addr <= AR; end
-            STAC5: begin mem_data_out <= DR; mem_wr <= 1'b1; 
-            
+            STAC5: begin mem_data_out <= DR; mem_wr <= 1'b1; end
+
             JUMP1: begin DR <= mem_data_in; AR <= AR+16'd1;
                              mem_addr <= AR+16'd1; mem_rd <= 1'b1; end
             JUMP2: begin TR <= DR; DR <= mem_data_in; end
