@@ -15,7 +15,7 @@ module alu (
 
     wire [7:0] arith_out;
     wire [7:0] logic_out;
-    wire arith_sel, logic_sel;
+    wire arith_active, logic_active;
     
     //Arithmetic Unit
     
@@ -35,8 +35,8 @@ module alu (
                        
    //Selection Select
    
-   assign arith_sel  = add | sub | inc | clr;
-   assign logic_sel = and_op | or_op | xor_op | not_op;
+   assign arith_active  = add | sub | inc | clr;
+   assign logic_active = and_op | or_op | xor_op | not_op;
    
    // Mux
    

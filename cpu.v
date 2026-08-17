@@ -112,6 +112,8 @@ always @(*) begin
         endcase
     end
 
+//Datapaths and state register
+
 always @(posedge clk or posedge rst) begin
         if (rst) begin
             current_state <= FETCH1;
@@ -121,6 +123,59 @@ always @(posedge clk or posedge rst) begin
             current_state <= next_state;
             mem_rd <= 1'b0; // Default inactive
             mem_wr <= 1'b0; // Default inactive
+            
+            case (current_state)
+            
+            FETCH1: begin AR <= PC; mem_addr <= PC; mem_rd <= 1'b1; end
+            FETCH2: begin DR <= mem_data_in; PC <= PC + 16'd1; end
+            FETCH3: begin IR <= DR; AR <= PC; mem_addr <= PC; mem_rd <= 1'b1; end
+            
+            LDAC1: begin DR <= mem_data_in; PC <= PC+16'd1; AR <= AR+16'd1;
+                             mem_addr <= AR+16'd1; mem_rd <= 1'b1; end
+            LDAC2: begin TR <= DR; DR <= mem_data_in; PC <= PC+16'd1; end
+            LDAC3: begin AR <= {TR,DR}; mem_addr <= {TR,DR}; mem_rd <= 1'b1; end
+            LDAC4: DR <= mem_data_in;
+            LDAC5: AC <= DR;
+            
+            STAC1: begin DR <= mem_data_in; PC <= PC+16'd1; AR <= AR+16'd1;
+                             mem_addr <= AR+16'd1; mem_rd <= 1'b1; end
+            STAC2: begin TR <= DR; DR <= mem_data_in; PC <= PC+16'd1; end
+            STAC3: AR <= {TR,DR};
+            STAC4: begin DR <= AC; mem_addr <= AR; end
+            STAC5: begin mem_data_out <= DR; mem_wr <= 1'b1; 
+            
+            JUMP1: begin DR <= mem_data_in; AR <= AR+16'd1;
+                             mem_addr <= AR+16'd1; mem_rd <= 1'b1; end
+            JUMP2: begin TR <= DR; DR <= mem_data_in; end
+            JUMP3: PC <= {TR,DR};
+
+                
+            JMPZY1: begin DR <= mem_data_in; AR <= AR+16'd1;
+                              mem_addr <= AR+16'd1; mem_rd <= 1'b1; end
+            JMPZY2: begin TR <= DR; DR <= mem_data_in; end
+            JMPZY3: PC <= {TR,DR};
+
+                
+            JPNYZ1: begin DR <= mem_data_in; AR <= AR+16'd1;
+                              mem_addr <= AR+16'd1; mem_rd <= 1'b1; end
+            JPNYZ2: begin TR <= DR; DR <= mem_data_in; end
+            JPNYZ3: PC <= {TR,DR};
+
+                // 1-byte ALU instructions
+            ADD1, SUB1, INAC1, CLAC1,
+            AND1, OR1, XOR1, NOT1: begin AC <= alu_out; Z <= alu_zero; end
+
+                MVAC1: R <= AC;
+                MOVR1: AC <= R;
+                NOP1:  ;                      // no operation
+            endcase
+        end
+    end
+endmodule
+
+                
+            
+
             
             
     
