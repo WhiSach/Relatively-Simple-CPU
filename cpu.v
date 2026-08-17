@@ -7,6 +7,29 @@ module cpu (
     output reg [7:0] mem_data_out,  // Data written to RAM
     output reg mem_rd,              // Memory read enable
     output reg mem_wr               // Memory write enable
+    
+        // ALU Control Wires
+    wire alu_add  = (current_state == ADD1);
+    wire alu_sub  = (current_state == SUB1);
+    wire alu_inc  = (current_state == INAC1);
+    wire alu_clr  = (current_state == CLAC1);
+    wire alu_and  = (current_state == AND1);
+    wire alu_or   = (current_state == OR1);
+    wire alu_xor  = (current_state == XOR1);
+    wire alu_not  = (current_state == NOT1);
+
+    // ALU Outputs
+    wire [7:0] alu_out;
+    wire alu_zero;
+
+    // Instantiate the ALU
+    alu u_alu (
+        .A(AC), 
+        .B(R),
+        .add(alu_add), .sub(alu_sub), .inc(alu_inc), .clr(alu_clr),
+        .and_op(alu_and), .or_op(alu_or), .xor_op(alu_xor), .not_op(alu_not),
+        .result(alu_out), 
+        .zero(alu_zero)
 );
 
     //internal registers
@@ -89,3 +112,15 @@ always @(*) begin
         endcase
     end
 
+always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            current_state <= FETCH1;
+            PC <= 16'd0; AR <= 16'd0; DR <= 8'd0; IR <= 8'd0; TR <= 8'd0; AC <= 8'd0; R <= 8'd0; Z <= 1'b0;
+            mem_addr <= 16'd0; mem_data_out <= 8'd0; mem_rd <= 1'b0; mem_wr <= 1'b0;
+        end else begin
+            current_state <= next_state;
+            mem_rd <= 1'b0; // Default inactive
+            mem_wr <= 1'b0; // Default inactive
+            
+            
+    
